@@ -1,201 +1,173 @@
-E-Commerce Order Processing System
-Architecture Overview
-This system implements a hybrid approach combining:
+ShopEasy - A Compact Three-Tier E-Commerce Web Application
+Overview
+ShopEasy is a streamlined e-commerce web application designed for browsing, purchasing, and managing products online. It follows a three-tier architecture to ensure modularity, scalability, and maintainability. The app supports product listings, a shopping cart, user authentication, and order processing, making it ideal for small-scale online stores or as a foundation for larger platforms.
+Key features:
 
-Direct database access for product search and browsing (synchronous)
-Kafka-based event processing for order creation (asynchronous)
-The separation ensures:
+User authentication (signup/login).
+Product browsing and search.
+Shopping cart management (add/remove items).
+Order creation and tracking.
+Persistent storage for users, products, and orders.
 
-Product searches get real-time data with minimal latency
-Order processing remains reliable and scalable
-Database load is optimized by separating read/write operations
-Product Dashboard and Search Flow (Synchronous Path)
-Components Involved
-ProductController.java - Handles HTTP requests for product data
-ProductRepository.java - Database interface for product queries
-Product.java - JPA entity mapping to database table
-Workflow
-Frontend Initiation
-When a user searches for products:
+Architecture
+ShopEasy is structured as a three-tier application, separating concerns for better organization and independent scaling:
 
-React frontend (dashboard.js) makes GET request to /api/products
-Optional search parameter can be included
-Backend Processing
-The ProductController:
+Presentation Tier (Frontend):
 
-For general browsing: Calls productRepository.findAll()
-For searches: Calls findByNameContainingIgnoreCaseOrDescriptionContainingIgnoreCase()
-Response Handling
+Provides an intuitive user interface for browsing products, managing carts, and placing orders.
+Built with React.js for dynamic, component-driven UI.
+Communicates with the backend via RESTful APIs (e.g., GET /api/products for product listings, POST /api/cart for cart updates).
+Key components: Product catalog, Cart view, Checkout form, User profile.
+Served via a web server (e.g., Nginx) or bundled with the backend in development.
+Notable features: Responsive design, client-side form validation, real-time cart updates.
 
-Formats results as JSON
-Returns HTTP 200 with product data
-Handles errors with appropriate status codes
-Key Characteristics
-Real-time inventory/pricing data
-Sub-100ms response times
-Simple request-response cycle
-Order Items (Asynchronous Path)
-Kafka Order Processing - Module Responsibilities
-Producer Service Flow (Frontend → Kafka)
-1. OrderController.java
-Input: HTTP POST request with OrderRequest payload
 
-Function:
+Application Tier (Backend):
 
-Validates request structure (customer info, items, payment)
-Generates unique order number (UUID)
-Transforms OrderRequest → OrderEvent DTO Output: Passes OrderEvent to KafkaProducerService
-2. KafkaProducerService.java
-Input: OrderEvent from Controller
+Handles business logic, API routing, and request processing.
+Developed using Node.js with Express.js for efficient API management.
+Key endpoints: 
+/api/auth/register and /api/auth/login for user authentication.
+/api/products for product CRUD operations.
+/api/cart for cart management.
+/api/orders for order creation and retrieval.
 
-Function:
 
-Serializes OrderEvent to JSON
-Publishes to "orders" Kafka topic
-Implements retry logic (3 attempts)
-Manages Kafka transactions
-Output: Message written to Kafka topic
+Uses JWT for secure authentication and Mongoose for MongoDB interactions.
+Deployed on port 3000 by default; supports asynchronous request handling.
+Scalability: Can be containerized or deployed across multiple instances.
 
-3. OrderEvent.java
-Structure:
 
-Order metadata (number, timestamp)
-Customer details (name, email, address)
-Item list (product IDs, quantities, prices)
-Payment method
-Role: Standardized message format for Kafka
+Data Tier (Database):
 
-Consumer Service Flow (Kafka → Database)
-1. OrderConsumerService.java
-Input: Messages from "orders" Kafka topic
+Stores data for users, products, carts, and orders.
+Utilizes MongoDB for a flexible, schema-less NoSQL database.
+Schemas:
+User: username, email, password hash, role (customer/admin).
+Product: name, description, price, stock, category.
+Cart: userId, items (productId, quantity).
+Order: userId, items, total, status, createdAt.
 
-Function:
 
-Deserializes JSON → OrderEvent
-Checks for duplicate orders (idempotency)
-Orchestrates processing pipeline:
-Converts OrderEvent → Order entity
-Saves to database via OrderRepository
-Updates inventory
-Sends notifications
-Output:
+Connected via MongoDB URI (e.g., mongodb://localhost:27017/shopeasy).
+Features indexes (e.g., on product category, user email) and transactions for order processing.
+Supports data export via mongodump.
 
-Success: Order persisted in DB
-Failure: Message moved to DLQ
-2. OrderRepository.java
-Input: Order entity from Consumer
 
-Function:
 
-Handles all database operations
-Uses pessimistic locking for concurrent updates
-Implements idempotency check
-Output: Order records in MySQL
+Inter-Tier Communication:
 
-3. Order.java & OrderItem.java
-Role:
+Frontend ↔ Backend: HTTP/REST with JSON payloads.
+Backend ↔ Database: MongoDB driver queries.This separation enables independent development, testing, and deployment of each tier.
 
-Order: Main entity with customer/shipping details
-OrderItem: Individual products in the order
-Function: Map Kafka messages to persistent entities
+Technologies Used
 
-Supporting Modules
-OrderRequest.java
-Role: API request schema
+Frontend: React.js (v18+), Axios for API requests, Tailwind CSS for styling.
+Backend: Node.js (v20+), Express.js (v4+), Mongoose (v8+), JWT for authentication.
+Database: MongoDB (v7+).
+Tools: npm for package management, Docker (optional), Git for version control.
 
-Contains: Raw frontend input before validation
+Prerequisites
 
-OrderResponse.java
-Role: API response format
+Node.js (v20 or higher).
+MongoDB server (local or cloud, e.g., MongoDB Atlas).
+Git for repository cloning.
 
-Contains: Order number + status for frontend
+Installation
 
-Error Handling
-DLQ Service: Manages failed messages
+Clone the repository:
+git clone https://github.com/yourusername/shopeasy.git
+cd shopeasy
 
-Retry Logic: Exponential backoff for transient failures
 
-End-to-End Flow
-Frontend submits order → OrderController
-Controller validates → KafkaProducerService
-Producer publishes → Kafka "orders" topic
-Consumer reads → Processes via:
-OrderRepository (persistence)
-InventoryService (stock update)
-NotificationService (emails)
-Results:
+Install backend dependencies:
+cd backend
+npm install
 
-Success: Order in DB + confirmation
 
-Failure: DLQ entry + alerts
+Install frontend dependencies:
+cd ../frontend
+npm install
 
-Key Characteristics
-Module	Responsibility	Data Flow
-OrderController	API Gateway	HTTP → Kafka
-KafkaProducerService	Reliable message publishing	Java → Kafka
-OrderConsumerService	Transactional processing	Kafka → DB
-OrderRepository	Data persistence	Objects → MySQL
-DTOs (OrderEvent)	Schema enforcement	Inter-service contracts
-This architecture ensures:
 
-Frontend gets instant response
+Configure environment variables:
 
-Orders are never lost (Kafka retention)
+Create .env in the backend directory:PORT=3000
+MONGO_URI=mongodb://localhost:27017/shopeasy
+JWT_SECRET=your_jwt_secret_key
 
-Database stays consistent
 
-Services remain loosely coupled
 
-Components Involved
-OrderController.java - Receives order submissions
-KafkaProducerService.java - Publishes order events
-OrderConsumerService.java - Processes order events
-OrderRepository.java - Saves orders to database
-Order.java, OrderItem.java - Order entity models
-Workflow
-Order Submission
 
-Frontend POSTs order data to /api/orders
-Includes customer info, items, and payment method
-Initial Validation
+Start MongoDB (if local):
+mongod
 
-Validates required fields
-Generates unique order number
-Creates OrderEvent DTO
-Event Publishing
 
-Serializes to JSON
-Publishes to "orders" Kafka topic
-Immediately returns 200 response
-Background Processing
-Consumer service:
 
-Listens to "orders" topic
-Converts DTO to JPA entity
-Persists to database
-Handles automatic retries
-Key Characteristics
-Immediate frontend acknowledgment
-Message durability during outages
-Parallel processing capability
-Automatic failure recovery
-Failure Handling
-Scenario	Product Search	Order Processing
-Database unavailable	Immediate error to user	Orders queue in Kafka
-High traffic	Slower responses	Processes during lulls
-Validation failure	Instant feedback	Notification system
-Monitoring
-Product Search
-API response times
-Database query performance
-Error rate monitoring
-Order Processing
-Kafka consumer lag
-End-to-end processing time
-Failed order rate
-Consumer health checks
-Key Benefits
-Performance: Fast browsing despite order volume
-Reliability: No lost orders during outages
-Scalability: Independent scaling of components
-Maintainability: Clear separation of concerns
+Running the Application
+
+Start the backend:
+cd backend
+npm start
+
+
+Accessible at http://localhost:3000.
+
+
+Start the frontend:
+cd frontend
+npm start
+
+
+Accessible at http://localhost:3001 (proxies API calls to backend).
+
+
+Open http://localhost:3001 in your browser to:
+
+Sign up/login.
+Browse products, add to cart, and place orders.
+
+
+
+For production, build the frontend (npm run build) and serve via the backend or a static host.
+Configuration
+
+Database: Update MONGO_URI in .env for custom MongoDB instances.
+API Endpoints:
+/api/auth/register: POST for signup.
+/api/auth/login: POST for login.
+/api/products: GET/POST for product listing/creation (admin only for POST).
+/api/cart: GET/POST/PUT for cart operations.
+/api/orders: POST/GET for order creation/retrieval.
+
+
+Security: JWT protects all routes except auth endpoints; admin routes use role-based access.
+
+Testing
+
+Unit Tests: Jest for backend APIs/models (npm test in backend).
+Integration Tests: Use Postman or scripts for end-to-end testing.
+Frontend Tests: React Testing Library (npm test in frontend).
+Verify: API responses, cart calculations, order status updates.
+
+Deployment
+
+Docker: Dockerfile in root for containerization.
+Build: docker build -t shopeasy .
+Run: docker run -p 3000:3000 -e MONGO_URI=your_mongo_uri shopeasy
+
+
+Cloud: Deploy on AWS, Heroku, or Vercel (frontend) + Render (backend).
+Ensure .env variables are configured in the deployment environment.
+
+Troubleshooting
+
+Database Errors: Check MongoDB URI and server status.
+CORS Issues: Backend includes CORS middleware; verify allowed origins.
+JWT Issues: Refresh token on login if expired.
+Logs: Console-based; use Winston for production logging.
+
+Contributing
+Fork the repo, create a feature branch, and submit a pull request. Adhere to ESLint conventions.
+License
+Licensed under the MIT License. See LICENSE for details.
