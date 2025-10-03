@@ -1,173 +1,178 @@
-ShopEasy - A Compact Three-Tier E-Commerce Web Application
+Three-Tier E-Commerce Web Application
 Overview
-ShopEasy is a streamlined e-commerce web application designed for browsing, purchasing, and managing products online. It follows a three-tier architecture to ensure modularity, scalability, and maintainability. The app supports product listings, a shopping cart, user authentication, and order processing, making it ideal for small-scale online stores or as a foundation for larger platforms.
-Key features:
+This project is a highly scalable, containerized, three-tier e-commerce web application using modern cloud-native technologies. The stack integrates a React frontend, Node.js/TypeScript backend, an event-driven architecture powered by Apache Kafka, a PostgreSQL database, Redis for caching, and Kubernetes for orchestration. The application simulates a real-world e-commerce platform with full-featured product, order, payment, and user management.
 
-User authentication (signup/login).
-Product browsing and search.
-Shopping cart management (add/remove items).
-Order creation and tracking.
-Persistent storage for users, products, and orders.
+Architectural Diagram
+text
+Client (Web/Mobile)
+      |
+      v
++----------------------+
+|    Frontend (React)  |  <-- Hosted on NGINX/Kubernetes
++----------------------+
+      |
+      v
++----------------------+
+|   API Gateway (Node) |  <-- gRPC/REST
++----------------------+
+      |
+      v
++--------------------------+
+| Backend Services (K8s)   |--- Pub/Sub/Event -> Kafka
+| - User Service           |--- Redis (Cache)
+| - Product Service        |--- Stripe/Payments
+| - Order Service          |--- S3/Blob Storage (Static/Media)
++--------------------------+
+      |
+      v
++----------------------+
+| PostgreSQL (DB)      |
++----------------------+
+Key Technologies
+Frontend: React (with TypeScript), Redux Toolkit, TailwindCSS, served by NGINX within containers
 
-Architecture
-ShopEasy is structured as a three-tier application, separating concerns for better organization and independent scaling:
+Backend/API: Node.js (TypeScript), Express.js, REST/gRPC APIs, API Gateway for service aggregation
 
-Presentation Tier (Frontend):
+Database: PostgreSQL (primary data), Redis (cache)
 
-Provides an intuitive user interface for browsing products, managing carts, and placing orders.
-Built with React.js for dynamic, component-driven UI.
-Communicates with the backend via RESTful APIs (e.g., GET /api/products for product listings, POST /api/cart for cart updates).
-Key components: Product catalog, Cart view, Checkout form, User profile.
-Served via a web server (e.g., Nginx) or bundled with the backend in development.
-Notable features: Responsive design, client-side form validation, real-time cart updates.
+Event Streaming: Apache Kafka (asynchronous service communication, decoupled order processing, etc.)
 
+Containerization: Docker, Compose for local development
 
-Application Tier (Backend):
+Orchestration: Kubernetes (K8s) for scaling/deployment, Helm charts for configuration
 
-Handles business logic, API routing, and request processing.
-Developed using Node.js with Express.js for efficient API management.
-Key endpoints: 
-/api/auth/register and /api/auth/login for user authentication.
-/api/products for product CRUD operations.
-/api/cart for cart management.
-/api/orders for order creation and retrieval.
+CI/CD: GitHub Actions or Jenkins pipelines (optional)
 
+Payment Integration: Stripe (or similar) for secure transactions
 
-Uses JWT for secure authentication and Mongoose for MongoDB interactions.
-Deployed on port 3000 by default; supports asynchronous request handling.
-Scalability: Can be containerized or deployed across multiple instances.
+Cloud/Storage: S3-compatible storage for product/media uploads
 
+Monitoring/Logging: Prometheus, Grafana, ELK or Loki stack
 
-Data Tier (Database):
+Other: OpenAPI/Swagger for API docs, JWT for authentication, Envoy/nginx for secure ingress
 
-Stores data for users, products, carts, and orders.
-Utilizes MongoDB for a flexible, schema-less NoSQL database.
-Schemas:
-User: username, email, password hash, role (customer/admin).
-Product: name, description, price, stock, category.
-Cart: userId, items (productId, quantity).
-Order: userId, items, total, status, createdAt.
+Features
+User authentication (JWT-based) and profile management
 
+Product catalog with search and filtering
 
-Connected via MongoDB URI (e.g., mongodb://localhost:27017/shopeasy).
-Features indexes (e.g., on product category, user email) and transactions for order processing.
-Supports data export via mongodump.
+Shopping cart and checkout flow
 
+Order processing, status tracking, and history
 
+Payment gateway integration and receipt generation
 
-Inter-Tier Communication:
+Real-time notifications/events powered by Kafka
 
-Frontend ↔ Backend: HTTP/REST with JSON payloads.
-Backend ↔ Database: MongoDB driver queries.This separation enables independent development, testing, and deployment of each tier.
+Admin dashboard for managing products and orders
 
-Technologies Used
+Performance optimization using Redis caching
 
-Frontend: React.js (v18+), Axios for API requests, Tailwind CSS for styling.
-Backend: Node.js (v20+), Express.js (v4+), Mongoose (v8+), JWT for authentication.
-Database: MongoDB (v7+).
-Tools: npm for package management, Docker (optional), Git for version control.
+Kubernetes-native scaling and resilience
 
-Prerequisites
+Getting Started
+1. Prerequisites
+Docker & Docker Compose
 
-Node.js (v20 or higher).
-MongoDB server (local or cloud, e.g., MongoDB Atlas).
-Git for repository cloning.
+Kubernetes cluster (Minikube, KIND, or cloud K8s)
 
-Installation
+Node.js (v18+)
 
-Clone the repository:
-git clone https://github.com/yourusername/shopeasy.git
-cd shopeasy
+Yarn/NPM
 
+PostgreSQL, Redis, Kafka (Docker Compose services)
 
-Install backend dependencies:
+Stripe API keys
+
+2. Local Development
+Clone Repository:
+
+text
+git clone https://github.com/your_org/modern-ecommerce-3tier.git
+cd modern-ecommerce-3tier
+Set Up Env Variables:
+Copy and adjust .env.example for backend, frontend, and Kafka/Redis:
+
+text
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env
+Start Local Stack:
+
+text
+docker-compose up -d
+# or for Kubernetes:
+kubectl apply -f k8s/
+Run Migrations & Seed Data:
+
+text
 cd backend
-npm install
+yarn migrate
+yarn seed
+Start Development Servers:
 
+Frontend: yarn start inside /frontend
 
-Install frontend dependencies:
-cd ../frontend
-npm install
+Backend: yarn dev inside /backend
 
+Kafka/Redis/Postgres: Managed via Docker Compose
 
-Configure environment variables:
+Microservices & Kafka
+Orders, payments, inventory, and notifications are implemented as discrete microservices.
 
-Create .env in the backend directory:PORT=3000
-MONGO_URI=mongodb://localhost:27017/shopeasy
-JWT_SECRET=your_jwt_secret_key
+Services subscribe and publish to Kafka topics for event-driven workflows (new orders, inventory updates, payment confirmations, etc.).
 
+Kafka consumers ensure scalable, eventual-consistent processing of business operations.
 
+Database & Caching
+PostgreSQL stores users, products, orders, and histories.
 
+Redis caches frequently accessed objects, including product listings and active cart sessions, improving performance.
 
-Start MongoDB (if local):
-mongod
+Security & Compliance
+JWT-based authentication and authorization
 
+Rate limiting via NGINX/Envoy
 
+Secure API and DB credential management via Kubernetes secrets
 
-Running the Application
-
-Start the backend:
-cd backend
-npm start
-
-
-Accessible at http://localhost:3000.
-
-
-Start the frontend:
-cd frontend
-npm start
-
-
-Accessible at http://localhost:3001 (proxies API calls to backend).
-
-
-Open http://localhost:3001 in your browser to:
-
-Sign up/login.
-Browse products, add to cart, and place orders.
-
-
-
-For production, build the frontend (npm run build) and serve via the backend or a static host.
-Configuration
-
-Database: Update MONGO_URI in .env for custom MongoDB instances.
-API Endpoints:
-/api/auth/register: POST for signup.
-/api/auth/login: POST for login.
-/api/products: GET/POST for product listing/creation (admin only for POST).
-/api/cart: GET/POST/PUT for cart operations.
-/api/orders: POST/GET for order creation/retrieval.
-
-
-Security: JWT protects all routes except auth endpoints; admin routes use role-based access.
-
-Testing
-
-Unit Tests: Jest for backend APIs/models (npm test in backend).
-Integration Tests: Use Postman or scripts for end-to-end testing.
-Frontend Tests: React Testing Library (npm test in frontend).
-Verify: API responses, cart calculations, order status updates.
+PCI-compliant payment tokenization (Stripe)
 
 Deployment
+Docker Compose (Local Only):
 
-Docker: Dockerfile in root for containerization.
-Build: docker build -t shopeasy .
-Run: docker run -p 3000:3000 -e MONGO_URI=your_mongo_uri shopeasy
+text
+docker-compose up -d
+Kubernetes (Production):
 
+text
+kubectl apply -f k8s/
+# Edit Helm values.yaml for custom configuration.
+Monitoring
+Exposes metrics via Prometheus endpoints
 
-Cloud: Deploy on AWS, Heroku, or Vercel (frontend) + Render (backend).
-Ensure .env variables are configured in the deployment environment.
+Preconfigured Grafana dashboards for traffic, latency, and error rates
 
-Troubleshooting
-
-Database Errors: Check MongoDB URI and server status.
-CORS Issues: Backend includes CORS middleware; verify allowed origins.
-JWT Issues: Refresh token on login if expired.
-Logs: Console-based; use Winston for production logging.
+Project Structure
+text
+/frontend      # React web interface
+/backend       # Node.js/Express microservices
+/kafka         # Kafka setup and topic definitions
+/database      # PostgreSQL migrations and seeds
+/redis         # Redis cache configuration
+/k8s           # K8s manifests and Helm charts
+/.github       # CI/CD pipeline definitions
+API Documentation
+API schema available at http(s)://<api-domain>/docs (OpenAPI/Swagger)
 
 Contributing
-Fork the repo, create a feature branch, and submit a pull request. Adhere to ESLint conventions.
-License
-Licensed under the MIT License. See LICENSE for details.
+Fork the repo and submit PRs to develop
+
+Follow conventional commit messages
+
+See CONTRIBUTING.md for guidelines
+
+References
+Kafka Service Architecture: see Confluent & Apache Kafka docs
+
+Redis for CQRS/Cache: Official Redis microservices guide
+
